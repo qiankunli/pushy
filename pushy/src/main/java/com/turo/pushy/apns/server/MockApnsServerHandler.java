@@ -24,6 +24,7 @@ package com.turo.pushy.apns.server;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.turo.pushy.apns.ApnsPushNotification;
 import com.turo.pushy.apns.util.DateAsTimeSinceEpochTypeAdapter;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -38,6 +39,7 @@ import io.netty.util.concurrent.PromiseCombiner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -45,6 +47,7 @@ import java.util.concurrent.TimeUnit;
 class MockApnsServerHandler extends Http2ConnectionHandler implements Http2FrameListener {
 
     private final PushNotificationHandler pushNotificationHandler;
+    private final MockApnsServerListener listener;
 
     private final Http2Connection.PropertyKey headersPropertyKey;
     private final Http2Connection.PropertyKey payloadPropertyKey;
@@ -64,9 +67,15 @@ class MockApnsServerHandler extends Http2ConnectionHandler implements Http2Frame
     public static class MockApnsServerHandlerBuilder extends AbstractHttp2ConnectionHandlerBuilder<MockApnsServerHandler, MockApnsServerHandler.MockApnsServerHandlerBuilder> {
 
         private PushNotificationHandler pushNotificationHandler;
+        private MockApnsServerListener listener;
 
         MockApnsServerHandlerBuilder pushNotificationHandler(final PushNotificationHandler pushNotificationHandler) {
             this.pushNotificationHandler = pushNotificationHandler;
+            return this;
+        }
+
+        MockApnsServerHandlerBuilder listener(final MockApnsServerListener listener) {
+            this.listener = listener;
             return this;
         }
 
@@ -77,7 +86,7 @@ class MockApnsServerHandler extends Http2ConnectionHandler implements Http2Frame
 
         @Override
         public MockApnsServerHandler build(final Http2ConnectionDecoder decoder, final Http2ConnectionEncoder encoder, final Http2Settings initialSettings) {
-            final MockApnsServerHandler handler = new MockApnsServerHandler(decoder, encoder, initialSettings, this.pushNotificationHandler);
+            final MockApnsServerHandler handler = new MockApnsServerHandler(decoder, encoder, initialSettings, this.pushNotificationHandler, this.listener);
             this.frameListener(handler);
             return handler;
         }
@@ -142,7 +151,7 @@ class MockApnsServerHandler extends Http2ConnectionHandler implements Http2Frame
         }
     }
 
-    protected static class ErrorPayload {
+    private static class ErrorPayload {
         private final String reason;
         private final Date timestamp;
 
@@ -160,10 +169,22 @@ class MockApnsServerHandler extends Http2ConnectionHandler implements Http2Frame
         }
     }
 
+    private static final class NoopMockApnsServerListener implements MockApnsServerListener {
+
+        @Override
+        public void handlePushNotificationAccepted(final ApnsPushNotification pushNotification) {
+        }
+
+        @Override
+        public void handlePushNotificationRejected(final ApnsPushNotification pushNotification, final RejectionReason rejectionReason, final Date deviceTokenExpirationTimestamp) {
+        }
+    }
+
     MockApnsServerHandler(final Http2ConnectionDecoder decoder,
                           final Http2ConnectionEncoder encoder,
                           final Http2Settings initialSettings,
-                          final PushNotificationHandler pushNotificationHandler) {
+                          final PushNotificationHandler pushNotificationHandler,
+                          final MockApnsServerListener listener) {
 
         super(decoder, encoder, initialSettings);
 
@@ -171,6 +192,7 @@ class MockApnsServerHandler extends Http2ConnectionHandler implements Http2Frame
         this.payloadPropertyKey = this.connection().newKey();
 
         this.pushNotificationHandler = pushNotificationHandler;
+        this.listener = listener != null ? listener : new NoopMockApnsServerListener();
     }
 
     @Override
@@ -254,16 +276,39 @@ class MockApnsServerHandler extends Http2ConnectionHandler implements Http2Frame
         final ByteBuf payload = stream.getProperty(this.payloadPropertyKey);
         final ChannelPromise writePromise = context.newPromise();
 
+        final ApnsPushNotification pushNotification;
+
+        // Constructing a push notification can be expensive, and we don't want to do it if nobody's listening.
+        if (!(this.listener instanceof NoopMockApnsServerListener)) {
+            // One challenge here is that we don't actually know that a push notification is valid, even if it's
+            // accepted by the push notification handler (since we might be using a handler that blindly accepts
+            // everything).
+            pushNotification = new LenientApnsPushNotification(
+                    ApnsHeaderUtil.getDeviceToken(headers),
+                    ApnsHeaderUtil.getTopic(headers),
+                    payload != null ? payload.toString(StandardCharsets.UTF_8) : null,
+                    ApnsHeaderUtil.getExpiration(headers),
+                    ApnsHeaderUtil.getPriority(headers),
+                    ApnsHeaderUtil.getCollapseId(headers)
+            );
+        } else {
+            pushNotification = null;
+        }
+
         try {
             this.pushNotificationHandler.handlePushNotification(headers, payload);
+
             this.write(context, new AcceptNotificationResponse(stream.id()), writePromise);
+            this.listener.handlePushNotificationAccepted(pushNotification);
         } catch (final RejectedNotificationException e) {
             final Date deviceTokenExpirationTimestamp = e instanceof UnregisteredDeviceTokenException ?
                     ((UnregisteredDeviceTokenException) e).getDeviceTokenExpirationTimestamp() : null;
 
             this.write(context, new RejectNotificationResponse(stream.id(), e.getApnsId(), e.getRejectionReason(), deviceTokenExpirationTimestamp), writePromise);
+            this.listener.handlePushNotificationRejected(pushNotification, e.getRejectionReason(), deviceTokenExpirationTimestamp);
         } catch (final Exception e) {
             this.write(context, new InternalServerErrorResponse(stream.id()), writePromise);
+            this.listener.handlePushNotificationRejected(pushNotification, RejectionReason.INTERNAL_SERVER_ERROR, null);
         } finally {
             if (stream.getProperty(this.payloadPropertyKey) != null) {
                 ((ByteBuf) stream.getProperty(this.payloadPropertyKey)).release();
