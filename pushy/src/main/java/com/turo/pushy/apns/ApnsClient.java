@@ -184,7 +184,6 @@ public class ApnsClient<T extends ApnsPushNotification> {
             @Override
             public void run() {
                 PushNotificationPromise<T, PushNotificationResponse<T>> responsePromise = null;
-                log.debug("thread {} ,retryPromises size {}", Thread.currentThread().getName(), retryPromises.size());
                 while ((responsePromise = retryPromises.poll()) != null) {
                     int retryCount = responsePromise.retryAndGet();
                     long notificationId = nextNotificationId.getAndIncrement();

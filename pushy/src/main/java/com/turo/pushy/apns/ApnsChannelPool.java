@@ -38,11 +38,11 @@ import java.util.Set;
 /**
  * <p>A pool of channels connected to an APNs server. Channel pools use a {@link ApnsChannelFactory} to create
  * connections (up to a given maximum capacity) on demand.</p>
- *
+ * <p>
  * <p>Callers acquire channels from the pool via the {@link ApnsChannelPool#acquire()} method, and must return them to
  * the pool with the {@link ApnsChannelPool#release(Channel)} method. When channels are acquired, they are unavailable
  * to other callers until they are released back into the pool.</p>
- *
+ * <p>
  * <p>Channel pools are intended to be long-lived, persistent resources. When an application no longer needs a channel
  * pool (presumably because it is shutting down), it must shut down the channel pool via the
  * {@link ApnsChannelPool#close()} method.</p>
@@ -89,9 +89,9 @@ class ApnsChannelPool {
      * Constructs a new channel pool that will create new channels with the given {@code channelFactory} and has the
      * given maximum channel {@code capacity}.
      *
-     * @param channelFactory the factory to be used to create new channels
-     * @param capacity the maximum number of channels that may be held in this pool
-     * @param executor the executor on which listeners for acquisition/release promises will be called
+     * @param channelFactory  the factory to be used to create new channels
+     * @param capacity        the maximum number of channels that may be held in this pool
+     * @param executor        the executor on which listeners for acquisition/release promises will be called
      * @param metricsListener an optional listener for metrics describing the performance and behavior of the pool
      */
     ApnsChannelPool(final PooledObjectFactory<Channel> channelFactory, final int capacity, final OrderedEventExecutor executor, final ApnsChannelPoolMetricsListener metricsListener) {
@@ -108,12 +108,11 @@ class ApnsChannelPool {
      * <p>Asynchronously acquires a channel from this channel pool. The acquired channel may be a pre-existing channel
      * stored in the pool or may be a new channel created on demand. If no channels are available and the pool is at
      * capacity, acquisition may be delayed until another caller releases a channel to the pool.</p>
-     *
+     * <p>
      * <p>When callers are done with a channel, they <em>must</em> release the channel back to the pool via the
      * {@link ApnsChannelPool#release(Channel)} method.</p>
      *
      * @return a {@code Future} that will be notified when a channel is available
-     *
      * @see ApnsChannelPool#release(Channel)
      */
     Future<Channel> acquire() {
@@ -166,8 +165,9 @@ class ApnsChannelPool {
                             ApnsChannelPool.this.pendingCreateChannelFutures.remove(createChannelFuture);
 
                             if (future.isSuccess()) {
-                                final Channel channel = future.getNow();
 
+                                final Channel channel = future.getNow();
+                                log.info("new channel to {} connect successfully", channel.remoteAddress().toString());
                                 ApnsChannelPool.this.allChannels.add(channel);
                                 ApnsChannelPool.this.metricsListener.handleConnectionAdded();
 
