@@ -109,13 +109,12 @@ public class ApnsClientBuilder {
 
     /**
      * <p>An alternative port for communication with the APNs gateway. According to Apple's documentation:</p>
-     *
+     * <p>
      * <blockquote>You can alternatively use port 2197 when communicating with APNs. You might do this, for example, to
      * allow APNs traffic through your firewall but to block other HTTPS traffic.</blockquote>
      *
      * @see <a href="https://developer.apple.com/library/content/documentation/NetworkingInternet/Conceptual/RemoteNotificationsPG/CommunicatingwithAPNs.html#//apple_ref/doc/uid/TP40008194-CH11-SW1">Communicating
      * with APNs</a>
-     *
      * @since 0.5
      */
     public static final int ALTERNATE_APNS_PORT = 2197;
@@ -125,14 +124,10 @@ public class ApnsClientBuilder {
      * and development environment.
      *
      * @param hostname the hostname of the server to which the client under construction should connect
-     *
      * @return a reference to this builder
-     *
      * @see ApnsClientBuilder#DEVELOPMENT_APNS_HOST
      * @see ApnsClientBuilder#PRODUCTION_APNS_HOST
-     *
      * @see <a href="https://developer.apple.com/library/content/documentation/NetworkingInternet/Conceptual/RemoteNotificationsPG/CommunicatingwithAPNs.html#//apple_ref/doc/uid/TP40008194-CH11-SW1">Communicating with APNs</a>
-     *
      * @since 0.11
      */
     public ApnsClientBuilder setApnsServer(final String hostname) {
@@ -146,17 +141,13 @@ public class ApnsClientBuilder {
      * around firewall or proxy restrictions.
      *
      * @param hostname the hostname of the server to which the client under construction should connect
-     * @param port the port to which the client under contruction should connect
-     *
+     * @param port     the port to which the client under contruction should connect
      * @return a reference to this builder
-     *
      * @see ApnsClientBuilder#DEVELOPMENT_APNS_HOST
      * @see ApnsClientBuilder#PRODUCTION_APNS_HOST
      * @see ApnsClientBuilder#DEFAULT_APNS_PORT
      * @see ApnsClientBuilder#ALTERNATE_APNS_PORT
-     *
      * @see <a href="https://developer.apple.com/library/content/documentation/NetworkingInternet/Conceptual/RemoteNotificationsPG/CommunicatingwithAPNs.html#//apple_ref/doc/uid/TP40008194-CH11-SW1">Communicating with APNs</a>
-     *
      * @since 0.11
      */
     public ApnsClientBuilder setApnsServer(final String hostname, final int port) {
@@ -164,29 +155,27 @@ public class ApnsClientBuilder {
         return this;
     }
 
-    public void setApnsInetProvider(ApnsInetProvider apnsInetProvider) {
+    public ApnsClientBuilder setApnsInetProvider(ApnsInetProvider apnsInetProvider) {
         this.apnsInetProvider = apnsInetProvider;
+        return this;
     }
 
     /**
      * <p>Sets the TLS credentials for the client under construction using the contents of the given PKCS#12 file.
      * Clients constructed with TLS credentials will use TLS-based authentication when sending push notifications. The
      * PKCS#12 file <em>must</em> contain a certificate/private key pair.</p>
-     *
+     * <p>
      * <p>Clients may not have both TLS credentials and a signing key.</p>
      *
-     * @param p12File a PKCS#12-formatted file containing the certificate and private key to be used to identify the
-     * client to the APNs server
+     * @param p12File     a PKCS#12-formatted file containing the certificate and private key to be used to identify the
+     *                    client to the APNs server
      * @param p12Password the password to be used to decrypt the contents of the given PKCS#12 file; passwords may be
-     * blank (i.e. {@code ""}), but must not be {@code null}
-     *
-     * @throws SSLException if the given PKCS#12 file could not be loaded or if any other SSL-related problem arises
-     * when constructing the context
-     * @throws IOException if any IO problem occurred while attempting to read the given PKCS#12 file, or the PKCS#12
-     * file could not be found
-     *
+     *                    blank (i.e. {@code ""}), but must not be {@code null}
      * @return a reference to this builder
-     *
+     * @throws SSLException if the given PKCS#12 file could not be loaded or if any other SSL-related problem arises
+     *                      when constructing the context
+     * @throws IOException  if any IO problem occurred while attempting to read the given PKCS#12 file, or the PKCS#12
+     *                      file could not be found
      * @since 0.8
      */
     public ApnsClientBuilder setClientCredentials(final File p12File, final String p12Password) throws SSLException, IOException {
@@ -199,20 +188,17 @@ public class ApnsClientBuilder {
      * <p>Sets the TLS credentials for the client under construction using the data from the given PKCS#12 input stream.
      * Clients constructed with TLS credentials will use TLS-based authentication when sending push notifications. The
      * PKCS#12 data <em>must</em> contain a certificate/private key pair.</p>
-     *
+     * <p>
      * <p>Clients may not have both TLS credentials and a signing key.</p>
      *
      * @param p12InputStream an input stream to a PKCS#12-formatted file containing the certificate and private key to
-     * be used to identify the client to the APNs server
-     * @param p12Password the password to be used to decrypt the contents of the given PKCS#12 file; passwords may be
-     * blank (i.e. {@code ""}), but must not be {@code null}
-     *
-     * @throws SSLException if the given PKCS#12 file could not be loaded or if any other SSL-related problem arises
-     * when constructing the context
-     * @throws IOException if any IO problem occurred while attempting to read the given PKCS#12 input stream
-     *
+     *                       be used to identify the client to the APNs server
+     * @param p12Password    the password to be used to decrypt the contents of the given PKCS#12 file; passwords may be
+     *                       blank (i.e. {@code ""}), but must not be {@code null}
      * @return a reference to this builder
-     *
+     * @throws SSLException if the given PKCS#12 file could not be loaded or if any other SSL-related problem arises
+     *                      when constructing the context
+     * @throws IOException  if any IO problem occurred while attempting to read the given PKCS#12 input stream
      * @since 0.8
      */
     public ApnsClientBuilder setClientCredentials(final InputStream p12InputStream, final String p12Password) throws SSLException, IOException {
@@ -240,16 +226,14 @@ public class ApnsClientBuilder {
     /**
      * <p>Sets the TLS credentials for the client under construction. Clients constructed with TLS credentials will use
      * TLS-based authentication when sending push notifications.</p>
-     *
+     * <p>
      * <p>Clients may not have both TLS credentials and a signing key.</p>
      *
-     * @param clientCertificate the certificate to be used to identify the client to the APNs server
-     * @param privateKey the private key for the client certificate
+     * @param clientCertificate  the certificate to be used to identify the client to the APNs server
+     * @param privateKey         the private key for the client certificate
      * @param privateKeyPassword the password to be used to decrypt the private key; may be {@code null} if the private
-     * key does not require a password
-     *
+     *                           key does not require a password
      * @return a reference to this builder
-     *
      * @since 0.8
      */
     public ApnsClientBuilder setClientCredentials(final X509Certificate clientCertificate, final PrivateKey privateKey, final String privateKeyPassword) {
@@ -263,16 +247,13 @@ public class ApnsClientBuilder {
     /**
      * <p>Sets the signing key for the client under construction. Clients constructed with a signing key will use
      * token-based authentication when sending push notifications.</p>
-     *
+     * <p>
      * <p>Clients may not have both a signing key and TLS credentials.</p>
      *
      * @param signingKey the signing key to be used by the client under construction
-     *
      * @return a reference to this builder
-     *
      * @see ApnsSigningKey#loadFromPkcs8File(File, String, String)
      * @see ApnsSigningKey#loadFromInputStream(InputStream, String, String)
-     *
      * @since 0.10
      */
     public ApnsClientBuilder setSigningKey(final ApnsSigningKey signingKey) {
@@ -284,15 +265,13 @@ public class ApnsClientBuilder {
     /**
      * <p>Sets the trusted certificate chain for the client under construction using the contents of the given PEM
      * file. If not set (or {@code null}), the client will use the JVM's default trust manager.</p>
-     *
+     * <p>
      * <p>Callers will generally not need to set a trusted server certificate chain in normal operation, but may wish
      * to do so for <a href="https://www.owasp.org/index.php/Certificate_and_Public_Key_Pinning">certificate pinning</a>
      * or connecting to a mock server for integration testing or benchmarking.</p>
      *
      * @param certificatePemFile a PEM file containing one or more trusted certificates
-     *
      * @return a reference to this builder
-     *
      * @since 0.8
      */
     public ApnsClientBuilder setTrustedServerCertificateChain(final File certificatePemFile) {
@@ -306,15 +285,13 @@ public class ApnsClientBuilder {
     /**
      * <p>Sets the trusted certificate chain for the client under construction using the contents of the given PEM
      * input stream. If not set (or {@code null}), the client will use the JVM's default trust manager.</p>
-     *
+     * <p>
      * <p>Callers will generally not need to set a trusted server certificate chain in normal operation, but may wish
      * to do so for <a href="https://www.owasp.org/index.php/Certificate_and_Public_Key_Pinning">certificate pinning</a>
      * or connecting to a mock server for integration testing or benchmarking.</p>
      *
      * @param certificateInputStream an input stream to PEM-formatted data containing one or more trusted certificates
-     *
      * @return a reference to this builder
-     *
      * @since 0.8
      */
     public ApnsClientBuilder setTrustedServerCertificateChain(final InputStream certificateInputStream) {
@@ -328,15 +305,13 @@ public class ApnsClientBuilder {
     /**
      * <p>Sets the trusted certificate chain for the client under construction. If not set (or {@code null}), the
      * client will use the JVM's default trust manager.</p>
-     *
+     * <p>
      * <p>Callers will generally not need to set a trusted server certificate chain in normal operation, but may wish
      * to do so for <a href="https://www.owasp.org/index.php/Certificate_and_Public_Key_Pinning">certificate pinning</a>
      * or connecting to a mock server for integration testing or benchmarking.</p>
      *
      * @param certificates one or more trusted certificates
-     *
      * @return a reference to this builder
-     *
      * @since 0.8
      */
     public ApnsClientBuilder setTrustedServerCertificateChain(final X509Certificate... certificates) {
@@ -350,7 +325,7 @@ public class ApnsClientBuilder {
     /**
      * <p>Sets the event loop group to be used by the client under construction. If not set (or if {@code null}), the
      * client will create and manage its own event loop group.</p>
-     *
+     * <p>
      * <p>Generally speaking, callers don't need to set event loop groups for clients, but it may be useful to specify
      * an event loop group under certain circumstances. In particular, specifying an event loop group that is shared
      * among multiple {@code ApnsClient} instances can keep thread counts manageable. Regardless of the number of
@@ -358,10 +333,8 @@ public class ApnsClientBuilder {
      * of certain platform-specific optimizations (e.g. {@code epoll} or {@code KQueue} event loop groups).</p>
      *
      * @param eventLoopGroup the event loop group to use for this client, or {@code null} to let the client manage its
-     * own event loop group
-     *
+     *                       own event loop group
      * @return a reference to this builder
-     *
      * @since 0.8
      */
     public ApnsClientBuilder setEventLoopGroup(final EventLoopGroup eventLoopGroup) {
@@ -374,10 +347,8 @@ public class ApnsClientBuilder {
      * APNs server. By default, clients will attempt to maintain a single connection to the APNs server.
      *
      * @param concurrentConnections the maximum number of concurrent connections the client under construction may
-     * attempt to maintain
-     *
+     *                              attempt to maintain
      * @return a reference to this builder
-     *
      * @since 0.11
      */
     public ApnsClientBuilder setConcurrentConnections(final int concurrentConnections) {
@@ -390,10 +361,8 @@ public class ApnsClientBuilder {
      * the performance and behavior of a client, and are completely optional.
      *
      * @param metricsListener the metrics listener for the client under construction, or {@code null} if this client
-     * should not report metrics to a listener
-     *
+     *                        should not report metrics to a listener
      * @return a reference to this builder
-     *
      * @since 0.8
      */
     public ApnsClientBuilder setMetricsListener(final ApnsClientMetricsListener metricsListener) {
@@ -407,10 +376,8 @@ public class ApnsClientBuilder {
      * gateway directly and will not use a proxy. By default, clients will not use a proxy.
      *
      * @param proxyHandlerFactory the proxy handler factory to be used to construct proxy handlers, or {@code null} if
-     * this client should not use a proxy
-     *
+     *                            this client should not use a proxy
      * @return a reference to this builder
-     *
      * @since 0.8
      */
     public ApnsClientBuilder setProxyHandlerFactory(final ProxyHandlerFactory proxyHandlerFactory) {
@@ -423,10 +390,8 @@ public class ApnsClientBuilder {
      * connection with the APNs server before the connection attempt is considered a failure.
      *
      * @param connectionTimeout the maximum amount of time to wait for a connection attempt to complete
-     * @param timeoutUnit the time unit for the given timeout
-     *
+     * @param timeoutUnit       the time unit for the given timeout
      * @return a reference to this builder
-     *
      * @since 0.8
      */
     public ApnsClientBuilder setConnectionTimeout(final long connectionTimeout, final TimeUnit timeoutUnit) {
@@ -440,11 +405,9 @@ public class ApnsClientBuilder {
      * to the APNs server. By default, clients will send a PING frame after
      * {@value com.turo.pushy.apns.ApnsClientBuilder#DEFAULT_PING_IDLE_TIME_MILLIS} milliseconds of inactivity.
      *
-     * @param pingInterval the amount of idle time after which the client will send a PING frame
+     * @param pingInterval     the amount of idle time after which the client will send a PING frame
      * @param pingIntervalUnit the time unit for the given idle time
-     *
      * @return a reference to this builder
-     *
      * @since 0.10
      */
     public ApnsClientBuilder setIdlePingInterval(final long pingInterval, final TimeUnit pingIntervalUnit) {
@@ -457,13 +420,10 @@ public class ApnsClientBuilder {
      * during a graceful shutdown.
      *
      * @param gracefulShutdownTimeout the amount of time to wait for in-progress requests to complete before closing a
-     * connection
-     * @param timeoutUnit the time unit for the given timeout
-     *
+     *                                connection
+     * @param timeoutUnit             the time unit for the given timeout
      * @return a reference to this builder
-     *
      * @see ApnsClient#close()
-     *
      * @since 0.8
      */
     public ApnsClientBuilder setGracefulShutdownTimeout(final long gracefulShutdownTimeout, final TimeUnit timeoutUnit) {
@@ -477,12 +437,9 @@ public class ApnsClientBuilder {
      * recommended only for debugging purposes.
      *
      * @param frameLogger the frame logger to be used by the client under construction or {@code null} if the client
-     * should not log individual HTTP/2 frames
-     *
+     *                    should not log individual HTTP/2 frames
      * @return a reference to this builder
-     *
      * @see <a href="https://www.slf4j.org/">SLF4J</a>
-     *
      * @since 0.12
      */
     public ApnsClientBuilder setFrameLogger(final Http2FrameLogger frameLogger) {
@@ -494,9 +451,7 @@ public class ApnsClientBuilder {
      * Constructs a new {@link ApnsClient} with the previously-set configuration.
      *
      * @return a new ApnsClient instance with the previously-set configuration
-     *
      * @throws SSLException if an SSL context could not be created for the new client for any reason
-     *
      * @since 0.8
      */
     public ApnsClient build() throws SSLException {
