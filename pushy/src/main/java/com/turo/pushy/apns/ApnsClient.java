@@ -139,7 +139,7 @@ public class ApnsClient<T extends ApnsPushNotification> {
         }
     }
 
-    protected ApnsClient(final InetSocketAddress apnsServerAddress, final SslContext sslContext,
+    protected ApnsClient(final ApnsInetProvider apnsInetProvider, final SslContext sslContext,
                          final ApnsSigningKey signingKey, final ProxyHandlerFactory proxyHandlerFactory,
                          final int connectTimeoutMillis, final long idlePingIntervalMillis,
                          final long gracefulShutdownTimeoutMillis, final int concurrentConnections,
@@ -158,7 +158,7 @@ public class ApnsClient<T extends ApnsPushNotification> {
 
         final ApnsChannelFactory channelFactory = new ApnsChannelFactory(sslContext, signingKey, proxyHandlerFactory,
                 connectTimeoutMillis, idlePingIntervalMillis, gracefulShutdownTimeoutMillis, frameLogger,
-                apnsServerAddress, this.eventLoopGroup);
+                apnsInetProvider, this.eventLoopGroup);
 
         final ApnsChannelPoolMetricsListener channelPoolMetricsListener = new ApnsChannelPoolMetricsListener() {
 

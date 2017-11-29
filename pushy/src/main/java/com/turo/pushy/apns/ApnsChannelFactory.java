@@ -68,7 +68,7 @@ class ApnsChannelFactory implements PooledObjectFactory<Channel>, Closeable {
     ApnsChannelFactory(final SslContext sslContext, final ApnsSigningKey signingKey,
                        final ProxyHandlerFactory proxyHandlerFactory, final int connectTimeoutMillis,
                        final long idlePingIntervalMillis, final long gracefulShutdownTimeoutMillis,
-                       final Http2FrameLogger frameLogger, final InetSocketAddress apnsServerAddress,
+                       final Http2FrameLogger frameLogger, final ApnsInetProvider apnsInetProvider,
                        final EventLoopGroup eventLoopGroup) {
 
         this.sslContext = sslContext;
@@ -80,7 +80,7 @@ class ApnsChannelFactory implements PooledObjectFactory<Channel>, Closeable {
         this.bootstrapTemplate = new Bootstrap();
         this.bootstrapTemplate.group(eventLoopGroup);
         this.bootstrapTemplate.option(ChannelOption.TCP_NODELAY, true);
-        this.bootstrapTemplate.remoteAddress(apnsServerAddress);
+        this.bootstrapTemplate.remoteAddress(apnsInetProvider.getInetAddress());
 
         if (connectTimeoutMillis > 0) {
             this.bootstrapTemplate.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, connectTimeoutMillis);

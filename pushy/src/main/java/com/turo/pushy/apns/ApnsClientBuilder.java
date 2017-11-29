@@ -53,7 +53,7 @@ import java.util.concurrent.TimeUnit;
  * @author <a href="https://github.com/jchambers">Jon Chambers</a>
  */
 public class ApnsClientBuilder {
-    private InetSocketAddress apnsServerAddress;
+    private ApnsInetProvider apnsInetProvider;
 
     private X509Certificate clientCertificate;
     private PrivateKey privateKey;
@@ -160,8 +160,12 @@ public class ApnsClientBuilder {
      * @since 0.11
      */
     public ApnsClientBuilder setApnsServer(final String hostname, final int port) {
-        this.apnsServerAddress = new InetSocketAddress(hostname, port);
+        this.apnsInetProvider = new SimpleInetProvider(hostname, port);
         return this;
+    }
+
+    public void setApnsInetProvider(ApnsInetProvider apnsInetProvider) {
+        this.apnsInetProvider = apnsInetProvider;
     }
 
     /**
@@ -496,8 +500,8 @@ public class ApnsClientBuilder {
      * @since 0.8
      */
     public ApnsClient build() throws SSLException {
-        if (this.apnsServerAddress == null) {
-            throw new IllegalStateException("No APNs server address specified.");
+        if (this.apnsInetProvider == null) {
+            throw new IllegalStateException("No APNs server provider specified.");
         }
 
         if (this.clientCertificate == null && this.privateKey == null && this.signingKey == null) {
@@ -535,7 +539,7 @@ public class ApnsClientBuilder {
             sslContext = sslContextBuilder.build();
         }
 
-        final ApnsClient client = new ApnsClient(this.apnsServerAddress, sslContext, this.signingKey,
+        final ApnsClient client = new ApnsClient(this.apnsInetProvider, sslContext, this.signingKey,
                 this.proxyHandlerFactory, this.connectionTimeoutMillis, this.idlePingIntervalMillis,
                 this.gracefulShutdownTimeoutMillis, this.concurrentConnections, this.metricsListener,
                 this.frameLogger, this.eventLoopGroup);
