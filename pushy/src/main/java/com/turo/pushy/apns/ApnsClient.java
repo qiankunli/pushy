@@ -243,18 +243,6 @@ public class ApnsClient<T extends ApnsPushNotification> {
                             ApnsClient.this.metricsListener.handleNotificationRejected(ApnsClient.this, notificationId);
                         }
                     } else {
-                        Throwable e = future.cause();
-                        /*
-                            Http2ChannelClosedException，连接关闭，设置StreamBufferingEncoder close=true
-                            1. 对于pending 的frame，抛异常
-                            2. 当下正在发的 frame 抛异常
-                            可以确定frame 还未发出
-                         */
-                        if(e instanceof StreamBufferingEncoder.Http2ChannelClosedException ||
-                                e instanceof StreamBufferingEncoder.Http2GoAwayException){
-                            retryPromises.add(responsePromise);
-                        }
-                        //todo 后续的listener 也会执行，即使重试成功，上层listener 还是会报失败
                         ApnsClient.this.metricsListener.handleWriteFailure(ApnsClient.this, notificationId);
                     }
                 }
@@ -271,6 +259,36 @@ public class ApnsClient<T extends ApnsPushNotification> {
         }
 
         return responseFuture;
+    }
+
+    public PushNotificationFuture<T, PushNotificationResponse<T>> sendNotificationWithRetry(final T notification) {
+        final PushNotificationPromise<T, PushNotificationResponse<T>> responsePromise =
+                new PushNotificationPromise<>(this.eventLoopGroup.next(), notification);
+        PushNotificationFuture<T, PushNotificationResponse<T>> responseFutureWithoutRetry = sendNotification(notification);
+        responseFutureWithoutRetry.addListener(new PushNotificationResponseListener<T>() {
+            @Override
+            public void operationComplete(PushNotificationFuture<T, PushNotificationResponse<T>> future) throws Exception {
+                if (future.isSuccess()) {
+                    responsePromise.setSuccess(future.getNow());
+                } else {
+                    Throwable e = future.cause();
+                    log.warn(e.getMessage(), e);
+                    /*
+                            Http2ChannelClosedException，连接关闭，设置StreamBufferingEncoder close=true
+                            1. 对于pending 的frame，抛异常
+                            2. 当下正在发的 frame 抛异常
+                            可以确定frame 还未发出
+                         */
+                    if (e instanceof StreamBufferingEncoder.Http2ChannelClosedException ||
+                            e instanceof StreamBufferingEncoder.Http2GoAwayException) {
+                        retryPromises.add(responsePromise);
+                    } else {
+                        responsePromise.tryFailure(e);
+                    }
+                }
+            }
+        });
+        return responsePromise;
     }
 
     private void doSendNotification(final PushNotificationPromise<T, PushNotificationResponse<T>> responsePromise, final long notificationId) {
