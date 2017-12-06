@@ -167,7 +167,7 @@ class ApnsChannelPool {
 
                             if (future.isSuccess()) {
                                 final Channel channel = future.getNow();
-
+                                log.info("new channel to {} connect successfully", channel.remoteAddress().toString());
                                 ApnsChannelPool.this.allChannels.add(channel);
                                 ApnsChannelPool.this.metricsListener.handleConnectionAdded();
 
