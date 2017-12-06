@@ -33,15 +33,15 @@ import io.netty.handler.ssl.ApplicationProtocolNegotiationHandler;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.timeout.IdleStateHandler;
+import io.netty.resolver.*;
 import io.netty.util.AttributeKey;
 import io.netty.util.ReferenceCounted;
-import io.netty.util.concurrent.Future;
-import io.netty.util.concurrent.GenericFutureListener;
-import io.netty.util.concurrent.Promise;
-import io.netty.util.concurrent.PromiseNotifier;
+import io.netty.util.concurrent.*;
 
 import java.io.Closeable;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -81,6 +81,17 @@ class ApnsChannelFactory implements PooledObjectFactory<Channel>, Closeable {
         this.bootstrapTemplate.group(eventLoopGroup);
         this.bootstrapTemplate.option(ChannelOption.TCP_NODELAY, true);
         this.bootstrapTemplate.remoteAddress(apnsServerAddress);
+        /*
+            use RoundRobinInetAddressResolver
+         */
+        this.bootstrapTemplate.resolver(new AddressResolverGroup<InetSocketAddress>() {
+            @Override
+            protected AddressResolver<InetSocketAddress> newResolver(EventExecutor executor) throws Exception {
+                AddressResolver<InetSocketAddress> addressResolver = new RoundRobinInetAddressResolver(executor, new DefaultNameResolver(executor)
+                ).asAddressResolver();
+                return addressResolver;
+            }
+        });
 
         if (connectTimeoutMillis > 0) {
             this.bootstrapTemplate.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, connectTimeoutMillis);
@@ -155,8 +166,7 @@ class ApnsChannelFactory implements PooledObjectFactory<Channel>, Closeable {
      * back-off requirements.
      *
      * @param channelReadyPromise the promise to be notified when a channel has been created and connected to the APNs
-     * server
-     *
+     *                            server
      * @return a future that will be notified once a channel has been created and connected to the APNs server
      */
     @Override
@@ -200,7 +210,7 @@ class ApnsChannelFactory implements PooledObjectFactory<Channel>, Closeable {
                     }
                 });
 
-                connectFuture.channel().closeFuture().addListener(new GenericFutureListener<ChannelFuture> () {
+                connectFuture.channel().closeFuture().addListener(new GenericFutureListener<ChannelFuture>() {
 
                     @Override
                     public void operationComplete(final ChannelFuture future) throws Exception {
@@ -222,7 +232,6 @@ class ApnsChannelFactory implements PooledObjectFactory<Channel>, Closeable {
      *
      * @param channel the channel to destroy
      * @param promise the promise to notify when the channel has been destroyed
-     *
      * @return a future that will be notified when the channel has been destroyed
      */
     @Override
