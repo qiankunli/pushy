@@ -37,7 +37,6 @@ import io.netty.util.concurrent.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.InetSocketAddress;
 import java.util.ArrayDeque;
 import java.util.Queue;
 import java.util.concurrent.TimeUnit;
@@ -190,7 +189,7 @@ public class ApnsClient<T extends ApnsPushNotification> {
                     long notificationId = nextNotificationId.getAndIncrement();
                     if (retryCount < 3) {
                         log.debug("send notification id {} with {} try", notificationId, retryCount);
-                        doSendNotification(responsePromise, notificationId);
+                        sendNotification(responsePromise.getPushNotification()).addListener(new RetryForReadFailListener(responsePromise));
                     } else {
                         responsePromise.tryFailure(CAN_NOT_ACQUIRE_CHANNEL_OR_WRITE_WITH_RETRY);
                     }
@@ -229,7 +228,7 @@ public class ApnsClient<T extends ApnsPushNotification> {
 
             final long notificationId = this.nextNotificationId.getAndIncrement();
 
-            doSendNotification(responsePromise, notificationId);
+            tryWriteNotification(responsePromise, notificationId);
 
             responsePromise.addListener(new PushNotificationResponseListener<T>() {
                 @Override
@@ -264,34 +263,48 @@ public class ApnsClient<T extends ApnsPushNotification> {
     public PushNotificationFuture<T, PushNotificationResponse<T>> sendNotificationWithRetry(final T notification) {
         final PushNotificationPromise<T, PushNotificationResponse<T>> responsePromise =
                 new PushNotificationPromise<>(this.eventLoopGroup.next(), notification);
-        PushNotificationFuture<T, PushNotificationResponse<T>> responseFutureWithoutRetry = sendNotification(notification);
-        responseFutureWithoutRetry.addListener(new PushNotificationResponseListener<T>() {
-            @Override
-            public void operationComplete(PushNotificationFuture<T, PushNotificationResponse<T>> future) throws Exception {
-                if (future.isSuccess()) {
-                    responsePromise.setSuccess(future.getNow());
-                } else {
-                    Throwable e = future.cause();
-                    log.warn(e.getMessage(), e);
-                    /*
-                            Http2ChannelClosedException，连接关闭，设置StreamBufferingEncoder close=true
-                            1. 对于pending 的frame，抛异常
-                            2. 当下正在发的 frame 抛异常
-                            可以确定frame 还未发出
-                         */
-                    if (e instanceof StreamBufferingEncoder.Http2ChannelClosedException ||
-                            e instanceof StreamBufferingEncoder.Http2GoAwayException) {
-                        retryPromises.add(responsePromise);
-                    } else {
-                        responsePromise.tryFailure(e);
-                    }
-                }
-            }
-        });
+        sendNotification(notification).addListener(new RetryForReadFailListener(responsePromise));
         return responsePromise;
     }
 
-    private void doSendNotification(final PushNotificationPromise<T, PushNotificationResponse<T>> responsePromise, final long notificationId) {
+    /*
+        除acquire channel 和 write fail之外的失败，视情况加入到重试队列
+     */
+    class RetryForReadFailListener implements PushNotificationResponseListener<T> {
+
+        private PushNotificationPromise<T, PushNotificationResponse<T>> responsePromise;
+
+        public RetryForReadFailListener(PushNotificationPromise<T, PushNotificationResponse<T>> responsePromise) {
+            this.responsePromise = responsePromise;
+        }
+
+        @Override
+        public void operationComplete(PushNotificationFuture<T, PushNotificationResponse<T>> future) throws Exception {
+            if (future.isSuccess()) {
+                responsePromise.setSuccess(future.getNow());
+            } else {
+                Throwable e = future.cause();
+                log.warn(e.getMessage(), e);
+                /*
+                        Http2ChannelClosedException，连接关闭，设置StreamBufferingEncoder close=true
+                        1. 对于pending 的frame，抛异常
+                        2. 当下正在发的 frame 抛异常
+                        可以确定frame 还未发出
+                     */
+                if (e instanceof StreamBufferingEncoder.Http2ChannelClosedException ||
+                        e instanceof StreamBufferingEncoder.Http2GoAwayException) {
+                    retryPromises.add(responsePromise);
+                } else {
+                    responsePromise.tryFailure(e);
+                }
+            }
+        }
+    }
+
+    /*
+        写失败，直接加入到重试队列
+     */
+    private void tryWriteNotification(final PushNotificationPromise<T, PushNotificationResponse<T>> responsePromise, final long notificationId) {
         this.channelPool.acquire().addListener(new GenericFutureListener<Future<Channel>>() {
             @Override
             public void operationComplete(final Future<Channel> acquireFuture) throws Exception {
