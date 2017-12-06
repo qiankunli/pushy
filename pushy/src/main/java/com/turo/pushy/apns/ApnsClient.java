@@ -31,6 +31,7 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.handler.codec.http2.Http2FrameLogger;
+import io.netty.handler.codec.http2.StreamBufferingEncoder;
 import io.netty.handler.ssl.SslContext;
 import io.netty.util.concurrent.*;
 import org.slf4j.Logger;
@@ -242,6 +243,18 @@ public class ApnsClient<T extends ApnsPushNotification> {
                             ApnsClient.this.metricsListener.handleNotificationRejected(ApnsClient.this, notificationId);
                         }
                     } else {
+                        Throwable e = future.cause();
+                        /*
+                            Http2ChannelClosedException，连接关闭，设置StreamBufferingEncoder close=true
+                            1. 对于pending 的frame，抛异常
+                            2. 当下正在发的 frame 抛异常
+                            可以确定frame 还未发出
+                         */
+                        if(e instanceof StreamBufferingEncoder.Http2ChannelClosedException ||
+                                e instanceof StreamBufferingEncoder.Http2GoAwayException){
+                            retryPromises.add(responsePromise);
+                        }
+                        //todo 后续的listener 也会执行，即使重试成功，上层listener 还是会报失败
                         ApnsClient.this.metricsListener.handleWriteFailure(ApnsClient.this, notificationId);
                     }
                 }
