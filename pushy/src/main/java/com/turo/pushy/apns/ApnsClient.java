@@ -228,7 +228,31 @@ public class ApnsClient<T extends ApnsPushNotification> {
 
             final long notificationId = this.nextNotificationId.getAndIncrement();
 
-            tryWriteNotification(responsePromise, notificationId);
+            this.channelPool.acquire().addListener(new GenericFutureListener<Future<Channel>>() {
+                @Override
+                public void operationComplete(final Future<Channel> acquireFuture) throws Exception {
+                    if (acquireFuture.isSuccess()) {
+                        final Channel channel = acquireFuture.getNow();
+
+                        channel.writeAndFlush(responsePromise).addListener(new GenericFutureListener<ChannelFuture>() {
+
+                            @Override
+                            public void operationComplete(final ChannelFuture future) throws Exception {
+                                if (future.isSuccess()) {
+                                    ApnsClient.this.metricsListener.handleNotificationSent(ApnsClient.this, notificationId);
+                                } else {
+                                    ApnsClient.this.metricsListener.handleWriteFailure(ApnsClient.this, notificationId);
+                                    responsePromise.tryFailure(new ApnsServerWriteException(future.cause()));
+                                }
+                            }
+                        });
+
+                        ApnsClient.this.channelPool.release(channel);
+                    } else {
+                        responsePromise.tryFailure(new ApnsServerWriteException(acquireFuture.cause()));
+                    }
+                }
+            });
 
             responsePromise.addListener(new PushNotificationResponseListener<T>() {
                 @Override
@@ -267,9 +291,6 @@ public class ApnsClient<T extends ApnsPushNotification> {
         return responsePromise;
     }
 
-    /*
-        除acquire channel 和 write fail之外的失败，视情况加入到重试队列
-     */
     class RetryForReadFailListener implements PushNotificationResponseListener<T> {
 
         private PushNotificationPromise<T, PushNotificationResponse<T>> responsePromise;
@@ -291,7 +312,8 @@ public class ApnsClient<T extends ApnsPushNotification> {
                         2. 当下正在发的 frame 抛异常
                         可以确定frame 还未发出
                      */
-                if (e instanceof StreamBufferingEncoder.Http2ChannelClosedException ||
+                if (e instanceof ApnsServerWriteException ||
+                        e instanceof StreamBufferingEncoder.Http2ChannelClosedException ||
                         e instanceof StreamBufferingEncoder.Http2GoAwayException) {
                     retryPromises.add(responsePromise);
                 } else {
@@ -304,37 +326,37 @@ public class ApnsClient<T extends ApnsPushNotification> {
     /*
         写失败，直接加入到重试队列
      */
-    private void tryWriteNotification(final PushNotificationPromise<T, PushNotificationResponse<T>> responsePromise, final long notificationId) {
-        this.channelPool.acquire().addListener(new GenericFutureListener<Future<Channel>>() {
-            @Override
-            public void operationComplete(final Future<Channel> acquireFuture) throws Exception {
-                if (acquireFuture.isSuccess()) {
-                    final Channel channel = acquireFuture.getNow();
-
-                    channel.writeAndFlush(responsePromise).addListener(new GenericFutureListener<ChannelFuture>() {
-
-                        @Override
-                        public void operationComplete(final ChannelFuture future) throws Exception {
-                            if (future.isSuccess()) {
-                                ApnsClient.this.metricsListener.handleNotificationSent(ApnsClient.this, notificationId);
-                            } else {
-                                ApnsClient.this.metricsListener.handleWriteFailure(ApnsClient.this, notificationId);
-//                                responsePromise.tryFailure(future.cause());
-                                retryPromises.add(responsePromise);
-                            }
-                        }
-                    });
-
-                    ApnsClient.this.channelPool.release(channel);
-                } else {
-                    Throwable t = acquireFuture.cause();
-                    log.warn(t.getMessage(), t);
-//                        responsePromise.tryFailure(acquireFuture.cause());
-                    retryPromises.add(responsePromise);
-                }
-            }
-        });
-    }
+//    private void tryWriteNotification(final PushNotificationPromise<T, PushNotificationResponse<T>> responsePromise, final long notificationId) {
+//        this.channelPool.acquire().addListener(new GenericFutureListener<Future<Channel>>() {
+//            @Override
+//            public void operationComplete(final Future<Channel> acquireFuture) throws Exception {
+//                if (acquireFuture.isSuccess()) {
+//                    final Channel channel = acquireFuture.getNow();
+//
+//                    channel.writeAndFlush(responsePromise).addListener(new GenericFutureListener<ChannelFuture>() {
+//
+//                        @Override
+//                        public void operationComplete(final ChannelFuture future) throws Exception {
+//                            if (future.isSuccess()) {
+//                                ApnsClient.this.metricsListener.handleNotificationSent(ApnsClient.this, notificationId);
+//                            } else {
+//                                ApnsClient.this.metricsListener.handleWriteFailure(ApnsClient.this, notificationId);
+////                                responsePromise.tryFailure(future.cause());
+//                                retryPromises.add(responsePromise);
+//                            }
+//                        }
+//                    });
+//
+//                    ApnsClient.this.channelPool.release(channel);
+//                } else {
+//                    Throwable t = acquireFuture.cause();
+//                    log.warn(t.getMessage(), t);
+////                        responsePromise.tryFailure(acquireFuture.cause());
+//                    retryPromises.add(responsePromise);
+//                }
+//            }
+//        });
+//    }
 
     /**
      * <p>Gracefully shuts down the client, closing all connections and releasing all persistent resources. The
